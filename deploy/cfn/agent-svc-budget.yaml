@@ -1,0 +1,26 @@
+# Reference manifest (Topic 10). The money circuit-breaker: at 100% of the monthly
+# budget, AWS Budgets attaches a Deny IAM policy so the service can no longer invoke
+# the LLM proxy — spend stops, it isn't just alarmed. The runnable model of this is
+# in agent_svc/reconcile.py (budget_hard_stop).
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  AgentSvcMonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: agent-svc-anthropic-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: { Amount: 4000, Unit: USD }
+        CostFilters: { TagKeyValue: ['user:ServiceName$agent-svc'] }
+  BudgetHardStop:
+    Type: AWS::Budgets::BudgetsAction
+    Properties:
+      BudgetName: agent-svc-anthropic-monthly
+      ActionType: APPLY_IAM_POLICY
+      ActionThreshold: { ActionThresholdValue: 100, ActionThresholdType: PERCENTAGE }
+      ApprovalModel: AUTOMATIC
+      Definition:
+        IamActionDefinition:
+          PolicyArn: arn:aws:iam::123456789012:policy/DenyLlmProxyInvoke
+          Roles: [agent-svc-role]

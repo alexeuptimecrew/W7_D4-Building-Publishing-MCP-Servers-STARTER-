@@ -1,0 +1,23 @@
+# Reference workflow (Topic 10). CI builds + pushes the image and bumps the tag in
+# the config repo; Argo CD then reconciles the cluster. SHA-pinned actions = supply
+# chain safety. Lives here (not under .github/) so it is documentation on the devbox,
+# not an active pipeline.
+name: agent-svc-ci
+on: { push: { branches: [main] } }
+permissions: { contents: read, id-token: write }
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
+      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/agent-svc-deploy
+          aws-region: us-east-1
+      - uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076
+      - run: docker build -t agent-svc:${{ github.sha }} .
+      - run: docker tag agent-svc:${{ github.sha }} 123456789012.dkr.ecr.us-east-1.amazonaws.com/agent-svc:${{ github.sha }}
+      - run: docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/agent-svc:${{ github.sha }}
+      - name: Bump config repo image tag
+        env: { GH_TOKEN: ${{ secrets.PLATFORM_CONFIG_TOKEN }} }
+        run: ./scripts/bump_image.sh agent-svc ${{ github.sha }}

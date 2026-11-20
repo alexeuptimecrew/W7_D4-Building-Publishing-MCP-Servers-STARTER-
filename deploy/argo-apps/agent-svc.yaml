@@ -1,0 +1,20 @@
+# Reference manifest (Topic 10). Not applied on the devbox — it targets a real
+# cluster. The runnable reconcile-loop + budget-deny demo lives in
+# agent_svc/reconcile.py; this is the actual Argo CD Application you would commit.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent-svc
+  namespace: argocd
+spec:
+  project: acme-platform
+  source:
+    repoURL: https://github.com/acme/platform-config.git
+    targetRevision: main
+    path: clusters/prod/agent-svc
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: acme-svc
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=false, ApplyOutOfSyncOnly=true]
